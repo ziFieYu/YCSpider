@@ -13,9 +13,9 @@ class BaseConcur(object):
         """
         constructor
         """
-        self.name = name        # the name of each thread or process
-        self.worker = worker    # the worker of each thread or process
-        self.pool = pool        # thread_pool or process_pool
+        self.name = name  # the name of each thread or process
+        self.worker = worker  # the worker of each thread or process
+        self.pool = pool  # thread_pool or process_pool
         return
 
     def run(self):
@@ -28,8 +28,9 @@ class BaseConcur(object):
                 if not self.work():
                     break
             except Queue.Empty:
-                if self.pool.is_all_tasks_done():
-                    break
+                # if self.pool.is_all_tasks_done():
+                #     break
+                pass
         return
 
     def work(self):
@@ -49,19 +50,5 @@ class BaseThread(BaseConcur, threading.Thread):
         constructor
         """
         threading.Thread.__init__(self, name=name)
-        BaseConcur.__init__(self, name, worker, pool)
-        return
-
-
-class BaseProcess(BaseConcur, multiprocessing.Process):
-    """
-    class of BaseProcess, as base class of each process
-    """
-
-    def __init__(self, name, worker, pool):
-        """
-        constructor
-        """
-        multiprocessing.Process.__init__(self, name=name)
         BaseConcur.__init__(self, name, worker, pool)
         return

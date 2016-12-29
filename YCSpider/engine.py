@@ -1,51 +1,50 @@
 # -*- encoding: utf-8 -*-
 
-from .base import BaseThread, BaseProcess
+from .base import BaseThread
 
 
-# ===============================================================================================================================
+# =========================  下载器  =========================
 def work_download(self):
-    # ----1
-    priority, url, keys, deep, critical, fetch_repeat, parse_repeat = self.pool.get_a_task("downloader")
+    # ----1 获取要下载的task
+    meta = self.pool.get_a_task("downloader")
+    url = meta.get('url', '')
 
-    # ----2
-    code, content = self.worker.working(url, keys, critical, fetch_repeat)
+    # ----2 发送request请求 得到response
+    code, response = self.worker.working(url, meta)
+    meta = response[1]
+    response = response[2]
 
-    # ----3
-    if code > 0:
-        self.pool.add_a_task("parser", (priority, url, keys, deep, critical, fetch_repeat, parse_repeat, content))
-    elif code == 0:
-        priority += (1 if critical else 0)
-        self.pool.add_a_task("downloader", (priority, url, keys, deep, critical, fetch_repeat + 1, parse_repeat))
-    else:
-        pass
+    # ----3 判断response状态码 选择后续动作
+    if code == 1:
+        self.pool.add_a_task("parser", (url, meta, response))
+    elif code == -1:
+        # 获取网页源代码失败 重试
+        self.pool.add_a_task("downloader", (url, meta))
 
     # ----4
     self.pool.finish_a_task("downloader")
     return True
 
 
-DownloadThread = type("FetchThread", (BaseThread,), dict(work=work_download))
-DownloadProcess = type("FetchProcess", (BaseProcess,), dict(work=work_download))
+DownloadThread = type("DownloadThread", (BaseThread,), dict(work=work_download))
 
 
-# ===============================================================================================================================
+# =========================  解析器  =========================
 def work_parse(self):
-    # ----1
-    priority, url, keys, deep, critical, fetch_repeat, parse_repeat, content = self.pool.get_a_task("parser")
+    # ----1 获取要解析的task (url, meta, response)
+    url, meta, response = self.pool.get_a_task("parser")
+    # ----2 开始解析
+    code, url_list, save_list = self.worker.working(url, meta, response)
 
-    # ----2
-    code, url_list, save_list = self.worker.working(priority, url, keys, deep, critical, parse_repeat, content)
-
-    # ----3
-    if code > 0:
-        for _url, _keys, _critical, _priority in url_list:
-            self.pool.add_a_task("downloader", (_priority, _url, _keys, deep + 1, _critical, 0, 0))
+    # ----3 判断解析状态 选择后续操作
+    if code == 1:
+        for _url, _meta in url_list:
+            self.pool.add_a_task("downloader", (_url, _meta))
         for item in save_list:
-            self.pool.add_a_task("saver", (url, keys, item))
-    elif code == 0:
-        priority += (1 if critical else 0)
-        self.pool.add_a_task("downloader", (priority, url, keys, deep, critical, fetch_repeat, parse_repeat + 1))
+            # print item
+            self.pool.add_a_task("saver", item)
+    elif code == -1:
+        self.pool.add_a_task("downloader", (url, meta))
     else:
         pass
 
@@ -55,18 +54,17 @@ def work_parse(self):
 
 
 ParseThread = type("ParseThread", (BaseThread,), dict(work=work_parse))
-ParseProcess = type("ParseProcess", (BaseProcess,), dict(work=work_parse))
 
 
-# ===============================================================================================================================
+# =========================  存储器  =========================
 def work_save(self):
-    # ----1
-    url, keys, item = self.pool.get_a_task("saver")
+    # ----1 获取要存储的task
+    item = self.pool.get_a_task("saver")
 
-    # ----2
-    result = self.worker.working(url, keys, item)
+    # ----2 存储
+    result = self.worker.working(item)
 
-    # ----3
+    # ----3 判断存储结果 选择后续操作
     if result:
         pass
     # ----4
@@ -75,4 +73,3 @@ def work_save(self):
 
 
 SaveThread = type("SaveThread", (BaseThread,), dict(work=work_save))
-SaveProcess = type("SaveProcess", (BaseProcess,), dict(work=work_save))

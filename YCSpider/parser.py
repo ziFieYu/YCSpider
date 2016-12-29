@@ -1,37 +1,33 @@
 # _*_ coding: utf-8 _*_
 
 import re
-import random
-import logging
-import datetime
+import sys
 
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 class Parser(object):
     """
-    Parser,to parse html
+    解析器
     """
 
-    def __init__(self):
-        self.log_str_format = "priority=%s, keys=%s, deep=%s, critical=%s, parse_repeat=%s, url=%s"
-        return
-
-    def working(self, url, content):
+    def working(self, url, meta, response):
+        code = 1
         try:
-            url_list, save_list = self.htm_parse(content)
+            url_list, save_list = self.htm_parse(url, meta, response)
         except Exception as excep:
-            # 重试
-            url_list = []
-            save_list = []
+            url_list, save_list = [], []
+            code = -1  # 重试
 
-        return url_list, save_list
+        return code, url_list, save_list
 
-    def htm_parse(self, content):
-
-        cur_html = content
+    def htm_parse(self, url, meta, response):
+        # content = (url, response)
+        cur_html = response.text
 
         # 获得 url_list && save_list
-        url_list = []  # 其他请求列表
-        save_list = []  # 结果列表
+        url_list = []
+        save_list = []
 
         # 解析下一页请求的地址列表
         u_pattern = re.compile('')

@@ -1,5 +1,6 @@
 # _*_ coding: utf-8 _*_
-import sys
+
+import redis
 
 
 class Saver(object):
@@ -7,20 +8,19 @@ class Saver(object):
     保存数据
     """
 
-    def __init__(self, file_name=None):
-        self.file_name = file_name  # default: None, output file or sys.stdout(if file_name is None)
-        self.save_pipe = open(file_name, "w", encoding="utf-8") if file_name else sys.stdout
+    def __init__(self, host='localhost', port=6379, rediskey='YCSpider:item'):
+        self.redisclient = redis.Redis(host, port)
+        self.rediskey = rediskey
         return
 
-    def working(self, url, keys, item):
+    def working(self, item):
         try:
-            result = self.item_save(url, keys, item)
+            result = self.item_save(item)
         except Exception as excep:
             # 重试
             result = False
         return result
 
-    def item_save(self, url, keys, item):
-        self.save_pipe.write("\t".join([url, str(keys), "\t".join([str(i) for i in item])]) + "\n")
-        self.save_pipe.flush()
+    def item_save(self, item=None):
+        self.redisclient.rpush(self.rediskey, item)
         return True
