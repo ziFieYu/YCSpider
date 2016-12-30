@@ -11,17 +11,6 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 
-# 定义抓取过程
-class TMDownloader(YCSpider.Downloader):
-    def get_html(self, url, meta):
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36",
-            "Accept-Encoding": "gzip"}
-        response = requests.get(url, headers=headers, timeout=10)
-        content = (url, meta, response)
-        return content
-
-
 # 定义解析过程
 class TMParser(YCSpider.Parser):
     def htm_parse(self, url, meta, response):
@@ -36,6 +25,7 @@ class TMParser(YCSpider.Parser):
         item['title'] = title
         saver_list.append(item)
         return url_list, saver_list
+
 
 
 # 定义保存过程
@@ -60,20 +50,19 @@ if __name__ == "__main__":
     port = configs.get('redis').get('port', 6379)
     rediskey = configs.get('redis').get('item_key', '%s:item') % spider_name
 
-    # 初始化fetcher, parser和saver
-    downloader = TMDownloader()
+    # 初始化parser和saver
     parser = TMParser()
     saver = TMSaver(host=redishost, port=port, rediskey=rediskey)
 
     # 初始化爬虫, 并传入初始Url
-    nba_spider = YCSpider.WebSpider(downloader, parser, saver, spider_name='yc_spider', url_filter=None)
+    nba_spider = YCSpider.WebSpider(parser, saver, spider_name='yc_spider')
 
     t1 = threading.Thread(target=nba_spider.add_crawl_urls)
     t1.setDaemon(True)
     t1.start()
 
     # 开启10个线程抓取数据
-    nba_spider.start_work_and_wait_done(download_num=10)
+    nba_spider.start_work_and_wait_done()
 
     t1.join()
 

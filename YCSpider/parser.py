@@ -6,18 +6,22 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+
 class Parser(object):
     """
     解析器
     """
 
-    def working(self, url, meta, response):
+    def working(self, url, meta, response, parse, htm_parse):
         code = 1
         try:
-            url_list, save_list = self.htm_parse(url, meta, response)
+            htm_parse = getattr(parse, htm_parse)
+            url_list, save_list = htm_parse(url, meta, response)
         except Exception as excep:
             url_list, save_list = [], []
             code = -1  # 重试
+            print '* ' * 30
+            print excep
 
         return code, url_list, save_list
 
